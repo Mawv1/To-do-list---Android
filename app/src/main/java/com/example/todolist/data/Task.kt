@@ -15,6 +15,6 @@ data class Task(
     val isCompleted: Boolean = false,
     val notificationEnabled: Boolean = false,
     val category: String? = null,
-    val attachments: List<String> = emptyList()
-)
+    val attachments: List<AttachmentItem> = emptyList()
+    )
 
