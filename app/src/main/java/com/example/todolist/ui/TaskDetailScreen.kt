@@ -20,6 +20,7 @@ import androidx.compose.material.icons.filled.Home
 import androidx.compose.material.icons.filled.Save
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.shadow
@@ -35,6 +36,7 @@ import android.app.AlarmManager
 import android.app.PendingIntent
 import android.content.Intent
 import com.example.todolist.notification.NotificationReceiver
+import androidx.compose.ui.graphics.Color
 
 @Composable
 fun TaskDetailScreen(
@@ -61,8 +63,8 @@ fun TaskDetailScreen(
         return
     }
 
-    var title by remember { mutableStateOf(task?.title ?: "") }
-    var description by remember { mutableStateOf(task?.description ?: "") }
+    var title by rememberSaveable { mutableStateOf(task?.title ?: "") }
+    var description by rememberSaveable { mutableStateOf(task?.description ?: "") }
     var dueAt by remember { mutableStateOf(task?.dueAt ?: System.currentTimeMillis()) }
     var isCompleted by remember { mutableStateOf(task?.isCompleted ?: false) }
     var notificationEnabled by remember { mutableStateOf(task?.notificationEnabled ?: false) }
@@ -81,14 +83,28 @@ fun TaskDetailScreen(
             value = title,
             onValueChange = { title = it },
             label = { Text("Tytuł") },
-            modifier = Modifier.fillMaxWidth()
+            modifier = Modifier.fillMaxWidth(),
+            colors = OutlinedTextFieldDefaults.colors(
+                focusedTextColor = Color.Black,
+                unfocusedTextColor = Color.Black,
+                focusedLabelColor = MaterialTheme.colorScheme.primary,
+                unfocusedLabelColor = MaterialTheme.colorScheme.primary,
+                cursorColor = MaterialTheme.colorScheme.primary
+            )
         )
         Spacer(modifier = Modifier.height(8.dp))
         OutlinedTextField(
             value = description,
             onValueChange = { description = it },
             label = { Text("Opis") },
-            modifier = Modifier.fillMaxWidth()
+            modifier = Modifier.fillMaxWidth(),
+            colors = OutlinedTextFieldDefaults.colors(
+                focusedTextColor = Color.Black,
+                unfocusedTextColor = Color.Black,
+                focusedLabelColor = MaterialTheme.colorScheme.primary,
+                unfocusedLabelColor = MaterialTheme.colorScheme.primary,
+                cursorColor = MaterialTheme.colorScheme.primary
+            )
         )
         Spacer(modifier = Modifier.height(8.dp))
         Row(verticalAlignment = Alignment.CenterVertically) {
@@ -128,6 +144,13 @@ fun TaskDetailScreen(
                 modifier = Modifier
                     .menuAnchor()
                     .fillMaxWidth(),
+                    colors = OutlinedTextFieldDefaults.colors(
+                        focusedTextColor = Color.Black,
+                        unfocusedTextColor = Color.Black,
+                        focusedLabelColor = MaterialTheme.colorScheme.primary,
+                        unfocusedLabelColor = MaterialTheme.colorScheme.primary,
+                        cursorColor = MaterialTheme.colorScheme.primary
+                    ),
                 trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = expanded) }
             )
             ExposedDropdownMenu(

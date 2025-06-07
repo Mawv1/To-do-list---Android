@@ -31,6 +31,7 @@ import com.example.todolist.ui.TaskListScreen
 import com.example.todolist.ui.theme.ToDoListTheme
 import com.example.todolist.viewmodel.TaskViewModel
 import com.example.todolist.viewmodel.TaskViewModelFactory
+import androidx.compose.foundation.isSystemInDarkTheme
 
 class MainActivity : ComponentActivity() {
     private var navControllerRef: androidx.navigation.NavHostController? = null
@@ -48,7 +49,7 @@ class MainActivity : ComponentActivity() {
         val repository = TaskRepository(db.taskDao())
         val factory = TaskViewModelFactory(repository)
         setContent {
-            ToDoListTheme {
+            ToDoListTheme(darkTheme = isSystemInDarkTheme(), dynamicColor = false) {
                 val navController = rememberNavController()
                 navControllerRef = navController
                 val viewModel: TaskViewModel = viewModel(factory = factory)
@@ -133,20 +134,3 @@ class MainActivity : ComponentActivity() {
         }
     }
 }
-
-@Composable
-fun Greeting(name: String, modifier: Modifier = Modifier) {
-    Text(
-        text = "Hello $name!",
-        modifier = modifier
-    )
-}
-
-@Preview(showBackground = true)
-@Composable
-fun GreetingPreview() {
-    ToDoListTheme {
-        Greeting("Android")
-    }
-}
-

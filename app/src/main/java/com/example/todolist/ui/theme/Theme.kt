@@ -9,28 +9,33 @@ import androidx.compose.material3.dynamicDarkColorScheme
 import androidx.compose.material3.dynamicLightColorScheme
 import androidx.compose.material3.lightColorScheme
 import androidx.compose.runtime.Composable
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 
 private val DarkColorScheme = darkColorScheme(
-    primary = Purple80,
-    secondary = PurpleGrey80,
-    tertiary = Pink80
+    primary = Yellow40, // Akcent do przycisków, FAB itp.
+    secondary = Orange40, // Dodatkowy akcent
+    tertiary = Blue80, // Drobne akcenty
+    background = Color(0xFF232323), // Ciemne, ale nie czarne tło
+    surface = Color(0xFF2C2C2C),
+    onPrimary = Color(0xFF232323), // Ciemny tekst na żółtym
+    onSecondary = Color.White,
+    onTertiary = Color.White,
+    onBackground = Color(0xFFFFF9C4), // Jasny tekst na ciemnym tle
+    onSurface = Color(0xFFFFF9C4)
 )
 
 private val LightColorScheme = lightColorScheme(
-    primary = Purple40,
-    secondary = PurpleGrey40,
-    tertiary = Pink40
-
-    /* Other default colors to override
-    background = Color(0xFFFFFBFE),
-    surface = Color(0xFFFFFBFE),
-    onPrimary = Color.White,
+    primary = Yellow40, // Akcent do przycisków, FAB itp.
+    secondary = Orange40, // Dodatkowy akcent
+    tertiary = Blue40, // Drobne akcenty
+    background = Color(0xFFFFFDE7), // Bardzo jasny żółty, jak kartka notatnika
+    surface = Color(0xFFFFF9C4), // Żółty do kart tasków
+    onPrimary = Color(0xFF232323), // Ciemny tekst na żółtym
     onSecondary = Color.White,
     onTertiary = Color.White,
-    onBackground = Color(0xFF1C1B1F),
-    onSurface = Color(0xFF1C1B1F),
-    */
+    onBackground = Color(0xFF232323), // Ciemny tekst na jasnym tle
+    onSurface = Color(0xFF232323)
 )
 
 @Composable
@@ -56,3 +61,4 @@ fun ToDoListTheme(
         content = content
     )
 }
+

@@ -9,6 +9,7 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.style.LineHeightStyle
 import androidx.compose.ui.unit.dp
 import com.example.todolist.data.Task
@@ -30,7 +31,14 @@ fun TaskListScreen(
             label = { Text("Szukaj zadań") },
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(8.dp)
+                .padding(8.dp),
+                colors = OutlinedTextFieldDefaults.colors(
+                    focusedTextColor = Color.Black,
+                    unfocusedTextColor = Color.Black,
+                    focusedLabelColor = MaterialTheme.colorScheme.primary,
+                    unfocusedLabelColor = MaterialTheme.colorScheme.primary,
+                    cursorColor = MaterialTheme.colorScheme.primary
+                )
         )
         LazyColumn(modifier = Modifier.weight(1f)) {
             items(tasks) { task ->
@@ -46,7 +54,7 @@ fun TaskListScreen(
         FloatingActionButton(
             onClick = onAddTask,
             modifier = Modifier
-                .padding(16.dp)
+                .padding(bottom = 64.dp, end = 32.dp)
                 .align(Alignment.End)
         ) {
             Icon(Icons.Default.Add, contentDescription = "Dodaj zadanie")
