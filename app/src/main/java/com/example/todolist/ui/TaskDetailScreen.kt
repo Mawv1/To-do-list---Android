@@ -117,21 +117,27 @@ fun TaskDetailScreen(
             Spacer(modifier = Modifier.width(16.dp))
             Checkbox(
                 checked = notificationEnabled,
-                onCheckedChange = { notificationEnabled = it }
+                onCheckedChange = {
+                    notificationEnabled = it
+                    if (!it) {
+                        dueAt = task?.dueAt ?: System.currentTimeMillis()
+                    }
+                }
             )
             Text("Powiadomienie")
         }
         Spacer(modifier = Modifier.height(8.dp))
-        // Wybór daty i godziny wykonania zadania
-        DateTimePickerField(
-            modifier = Modifier.fillMaxWidth().padding(vertical = 8.dp),
-            initialDateTime = dueAt,
-            onDateTimeSelected = { selectedDateTime ->
-                dueAt = selectedDateTime
-            }
-        )
-
-        Spacer(modifier = Modifier.height(8.dp))
+        // Wybór daty i godziny wykonania zadania tylko jeśli powiadomienie jest włączone
+        if (notificationEnabled) {
+            DateTimePickerField(
+                modifier = Modifier.fillMaxWidth().padding(vertical = 8.dp),
+                initialDateTime = dueAt,
+                onDateTimeSelected = { selectedDateTime ->
+                    dueAt = selectedDateTime
+                }
+            )
+            Spacer(modifier = Modifier.height(8.dp))
+        }
         @OptIn(ExperimentalMaterial3Api::class)
         ExposedDropdownMenuBox(
             expanded = expanded,
