@@ -77,12 +77,23 @@ class MainActivity : ComponentActivity() {
                             task = if (taskId > 0L) task else null,
                             onSave = {
                                 if (it.id == 0L) viewModel.insertTask(it) else viewModel.updateTask(it)
-                                navController.popBackStack()
+                                navController.navigate("list") {
+                                    popUpTo("list") { inclusive = true }
+                                    launchSingleTop = true
+                                }
                             },
-                            onCancel = { navController.popBackStack() },
+                            onCancel = {
+                                navController.navigate("list") {
+                                    popUpTo("list") { inclusive = true }
+                                    launchSingleTop = true
+                                }
+                            },
                             onDelete = {
                                 viewModel.deleteTask(it)
-                                navController.popBackStack(route = "list", inclusive = false)
+                                navController.navigate("list") {
+                                    popUpTo("list") { inclusive = true }
+                                    launchSingleTop = true
+                                }
                             }
                         )
                     }
@@ -91,9 +102,17 @@ class MainActivity : ComponentActivity() {
                             task = null,
                             onSave = {
                                 viewModel.insertTask(it)
-                                navController.popBackStack()
+                                navController.navigate("list") {
+                                    popUpTo("list") { inclusive = true }
+                                    launchSingleTop = true
+                                }
                             },
-                            onCancel = { navController.popBackStack() }
+                            onCancel = {
+                                navController.navigate("list") {
+                                    popUpTo("list") { inclusive = true }
+                                    launchSingleTop = true
+                                }
+                            }
                         )
                     }
                 }

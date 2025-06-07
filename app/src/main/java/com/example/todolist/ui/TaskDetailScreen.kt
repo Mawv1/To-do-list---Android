@@ -41,6 +41,24 @@ fun TaskDetailScreen(
     onCancel: () -> Unit,
     onDelete: ((Task) -> Unit)? = null
 ) {
+    // Wyświetl komunikat o braku zadania TYLKO jeśli próbujemy edytować (onDelete != null)
+    if (task == null && onDelete != null) {
+        Column(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(16.dp),
+            verticalArrangement = Arrangement.Center,
+            horizontalAlignment = Alignment.CenterHorizontally
+        ) {
+            Text("Nie znaleziono zadania", style = MaterialTheme.typography.headlineSmall)
+            Spacer(modifier = Modifier.height(24.dp))
+            Button(onClick = onCancel) {
+                Text("Powrót")
+            }
+        }
+        return
+    }
+
     var title by remember { mutableStateOf(task?.title ?: "") }
     var description by remember { mutableStateOf(task?.description ?: "") }
     var dueAt by remember { mutableStateOf(task?.dueAt ?: System.currentTimeMillis()) }
