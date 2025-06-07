@@ -123,6 +123,7 @@ class MainActivity : ComponentActivity() {
     override fun onNewIntent(intent: android.content.Intent?) {
         super.onNewIntent(intent)
         val taskId = intent?.getLongExtra("taskId", 0L) ?: 0L
+        android.util.Log.d("MainActivity", "onNewIntent: taskId = $taskId")
         if (taskId != 0L) {
             navControllerRef?.navigate("detail/$taskId") {
                 popUpTo("list") { inclusive = false }

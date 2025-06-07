@@ -16,6 +16,8 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.DateRange
 import androidx.compose.material.icons.filled.Delete
+import androidx.compose.material.icons.filled.Home
+import androidx.compose.material.icons.filled.Save
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -72,6 +74,7 @@ fun TaskDetailScreen(
     }
     val categories = listOf("Dom", "Praca", "Szkoła", "Inne")
     var expanded by remember { mutableStateOf(false) }
+    var showDeleteDialog by remember { mutableStateOf(false) }
 
     Column(modifier = Modifier.padding(16.dp)) {
         OutlinedTextField(
@@ -197,22 +200,39 @@ fun TaskDetailScreen(
                     scheduleTaskNotification(context, newTask)
                 }
             }) {
-                Text("Zapisz")
+                Icon(Icons.Filled.Save, contentDescription = "Zapisz")
             }
             Spacer(modifier = Modifier.width(8.dp))
-            OutlinedButton(onClick = onCancel) {
-                Text("Anuluj")
-            }
             if (task != null && onDelete != null) {
                 Spacer(modifier = Modifier.width(8.dp))
-                OutlinedButton(onClick = { onDelete(task) }) {
-                    Text("Usuń")
+                OutlinedButton(onClick = { showDeleteDialog = true }) {
+                    Icon(Icons.Filled.Delete, contentDescription = "Usuń")
                 }
             }
             Spacer(modifier = Modifier.width(8.dp))
             OutlinedButton(onClick = onCancel) {
-                Text("Strona główna")
+                Icon(Icons.Filled.Home, contentDescription = "Strona główna")
             }
+        }
+        if (showDeleteDialog) {
+            AlertDialog(
+                onDismissRequest = { showDeleteDialog = false },
+                title = { Text("Potwierdzenie usunięcia") },
+                text = { Text("Czy na pewno chcesz usunąć to zadanie?") },
+                confirmButton = {
+                    TextButton(onClick = {
+                        showDeleteDialog = false
+                        onDelete?.invoke(task!!)
+                    }) {
+                        Text("Usuń")
+                    }
+                },
+                dismissButton = {
+                    TextButton(onClick = { showDeleteDialog = false }) {
+                        Text("Anuluj")
+                    }
+                }
+            )
         }
     }
 }

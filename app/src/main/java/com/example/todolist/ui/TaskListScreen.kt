@@ -34,7 +34,13 @@ fun TaskListScreen(
         )
         LazyColumn(modifier = Modifier.weight(1f)) {
             items(tasks) { task ->
-                TaskItem(task = task, onClick = { onTaskClick(task) })
+                TaskItem(
+                    task = task,
+                    onClick = { onTaskClick(task) },
+                    onToggleCompleted = { toggledTask ->
+                        viewModel.updateTask(toggledTask.copy(isCompleted = !toggledTask.isCompleted))
+                    }
+                )
             }
         }
         FloatingActionButton(

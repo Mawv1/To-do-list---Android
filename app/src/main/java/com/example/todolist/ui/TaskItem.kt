@@ -6,6 +6,7 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
@@ -21,6 +22,7 @@ import com.example.todolist.data.Task
 fun TaskItem(
     task: Task,
     onClick: () -> Unit,
+    onToggleCompleted: (Task) -> Unit,
     modifier: Modifier = Modifier
 ) {
     Surface(
@@ -37,22 +39,29 @@ fun TaskItem(
                 .padding(12.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
-            Icon(
-                imageVector = Icons.Default.CheckCircle,
-                contentDescription = if (task.isCompleted) "Zakończone" else "Niezakończone",
-                tint = if (task.isCompleted) MaterialTheme.colorScheme.primary else Color.Gray,
-                modifier = Modifier.size(24.dp)
-            )
+            IconButton(onClick = { onToggleCompleted(task) }) {
+                Icon(
+                    imageVector = Icons.Default.CheckCircle,
+                    contentDescription = if (task.isCompleted) "Zakończone" else "Niezakończone",
+                    tint = if (task.isCompleted) MaterialTheme.colorScheme.primary else Color.Gray,
+                    modifier = Modifier.size(24.dp)
+                )
+            }
             Spacer(modifier = Modifier.width(12.dp))
             Column(modifier = Modifier.weight(1f)) {
                 Text(
                     text = task.title,
-                    style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold)
+                    style = MaterialTheme.typography.titleMedium.copy(
+                        fontWeight = FontWeight.Bold,
+                        textDecoration = if (task.isCompleted) androidx.compose.ui.text.style.TextDecoration.LineThrough else null
+                    )
                 )
                 if (!task.description.isNullOrBlank()) {
                     Text(
                         text = task.description,
-                        style = MaterialTheme.typography.bodyMedium,
+                        style = MaterialTheme.typography.bodyMedium.copy(
+                            textDecoration = if (task.isCompleted) androidx.compose.ui.text.style.TextDecoration.LineThrough else null
+                        ),
                         maxLines = 1
                     )
                 }
