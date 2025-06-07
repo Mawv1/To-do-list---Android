@@ -70,6 +70,8 @@ fun TaskDetailScreen(
     val filePickerLauncher = rememberLauncherForActivityResult(ActivityResultContracts.OpenMultipleDocuments()) { uris ->
         uris?.let { attachments.addAll(it.map { uri -> uri.toString() }) }
     }
+    val categories = listOf("Dom", "Praca", "Szkoła", "Inne")
+    var expanded by remember { mutableStateOf(false) }
 
     Column(modifier = Modifier.padding(16.dp)) {
         OutlinedTextField(
@@ -110,12 +112,37 @@ fun TaskDetailScreen(
         )
 
         Spacer(modifier = Modifier.height(8.dp))
-        OutlinedTextField(
-            value = category,
-            onValueChange = { category = it },
-            label = { Text("Kategoria") },
-            modifier = Modifier.fillMaxWidth()
-        )
+        @OptIn(ExperimentalMaterial3Api::class)
+        ExposedDropdownMenuBox(
+            expanded = expanded,
+            onExpandedChange = { expanded = !expanded }
+        ) {
+            OutlinedTextField(
+                value = category,
+                onValueChange = {},
+                readOnly = true,
+                label = { Text("Kategoria") },
+                modifier = Modifier
+                    .menuAnchor()
+                    .fillMaxWidth(),
+                trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = expanded) }
+            )
+            ExposedDropdownMenu(
+                expanded = expanded,
+                onDismissRequest = { expanded = false },
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                categories.forEach { cat ->
+                    DropdownMenuItem(
+                        text = { Text(cat) },
+                        onClick = {
+                            category = cat
+                            expanded = false
+                        }
+                    )
+                }
+            }
+        }
         Spacer(modifier = Modifier.height(8.dp))
         // Obsługa załączników (lista nazw plików i przycisk dodawania)
         Text("Załączniki:", style = MaterialTheme.typography.titleSmall)
