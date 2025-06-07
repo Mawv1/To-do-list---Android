@@ -1,9 +1,12 @@
 package com.example.todolist
 
+import android.Manifest
+import android.os.Build
 import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.activity.viewModels
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
@@ -30,17 +33,30 @@ import com.example.todolist.viewmodel.TaskViewModel
 import com.example.todolist.viewmodel.TaskViewModelFactory
 
 class MainActivity : ComponentActivity() {
+    private var navControllerRef: androidx.navigation.NavHostController? = null
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
+        // Prośba o uprawnienie do powiadomień na Android 13+
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+            val requestPermissionLauncher = registerForActivityResult(
+                ActivityResultContracts.RequestPermission()
+            ) { isGranted: Boolean -> }
+            requestPermissionLauncher.launch(Manifest.permission.POST_NOTIFICATIONS)
+        }
         val db = TaskDatabase.getDatabase(applicationContext)
         val repository = TaskRepository(db.taskDao())
         val factory = TaskViewModelFactory(repository)
         setContent {
             ToDoListTheme {
                 val navController = rememberNavController()
+                navControllerRef = navController
                 val viewModel: TaskViewModel = viewModel(factory = factory)
-                NavHost(navController = navController, startDestination = "list") {
+                // Obsługa taskId z powiadomienia
+                val startTaskId = intent?.getLongExtra("taskId", 0L) ?: 0L
+                val startDestination = if (startTaskId != 0L) "detail/$startTaskId" else "list"
+                // Po usunięciu taska wracaj na listę
+                NavHost(navController = navController, startDestination = startDestination) {
                     composable("list") {
                         TaskListScreen(
                             viewModel = viewModel,
@@ -55,15 +71,19 @@ class MainActivity : ComponentActivity() {
                         val taskId = backStackEntry.arguments?.getLong("taskId") ?: 0L
                         val task by viewModel.tasks.collectAsState()
                             .let { state ->
-                                derivedStateOf { state.value.find { it.id == taskId } }
+                                derivedStateOf { state.value.find { it.id == taskId && taskId > 0L } }
                             }
                         TaskDetailScreen(
-                            task = if (taskId == 0L) null else task,
+                            task = if (taskId > 0L) task else null,
                             onSave = {
                                 if (it.id == 0L) viewModel.insertTask(it) else viewModel.updateTask(it)
                                 navController.popBackStack()
                             },
-                            onCancel = { navController.popBackStack() }
+                            onCancel = { navController.popBackStack() },
+                            onDelete = {
+                                viewModel.deleteTask(it)
+                                navController.popBackStack(route = "list", inclusive = false)
+                            }
                         )
                     }
                     composable("detail") {
@@ -77,6 +97,18 @@ class MainActivity : ComponentActivity() {
                         )
                     }
                 }
+            }
+        }
+    }
+
+    override fun onNewIntent(intent: android.content.Intent?) {
+        super.onNewIntent(intent)
+        val taskId = intent?.getLongExtra("taskId", 0L) ?: 0L
+        if (taskId != 0L) {
+            navControllerRef?.navigate("detail/$taskId") {
+                popUpTo("list") { inclusive = false }
+                launchSingleTop = true
+                restoreState = true
             }
         }
     }

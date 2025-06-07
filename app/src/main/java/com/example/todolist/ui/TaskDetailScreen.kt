@@ -6,7 +6,9 @@ import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.ui.platform.LocalContext
 import android.provider.OpenableColumns
+import android.widget.Toast
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.gestures.awaitEachGesture
 import androidx.compose.foundation.gestures.awaitFirstDown
 import androidx.compose.foundation.gestures.waitForUpOrCancellation
@@ -27,12 +29,17 @@ import com.example.todolist.data.AttachmentItem
 import com.example.todolist.data.Task
 import java.text.SimpleDateFormat
 import java.util.*
+import android.app.AlarmManager
+import android.app.PendingIntent
+import android.content.Intent
+import com.example.todolist.notification.NotificationReceiver
 
 @Composable
 fun TaskDetailScreen(
     task: Task?,
     onSave: (Task) -> Unit,
-    onCancel: () -> Unit
+    onCancel: () -> Unit,
+    onDelete: ((Task) -> Unit)? = null
 ) {
     var title by remember { mutableStateOf(task?.title ?: "") }
     var description by remember { mutableStateOf(task?.description ?: "") }
@@ -97,7 +104,22 @@ fun TaskDetailScreen(
         Column(modifier = Modifier.fillMaxWidth()) {
             attachments.forEachIndexed { idx, fileUri ->
                 Row(verticalAlignment = Alignment.CenterVertically) {
-                    Text(text = getFileNameFromUri(context, fileUri), modifier = Modifier.weight(1f))
+                    Text(
+                        text = getFileNameFromUri(context, fileUri),
+                        modifier = Modifier
+                            .weight(1f)
+                            .clickable {
+                                try {
+                                    val intent = android.content.Intent(android.content.Intent.ACTION_VIEW).apply {
+                                        setDataAndType(Uri.parse(fileUri), context.contentResolver.getType(Uri.parse(fileUri)))
+                                        addFlags(android.content.Intent.FLAG_GRANT_READ_URI_PERMISSION)
+                                    }
+                                    context.startActivity(intent)
+                                } catch (e: Exception) {
+                                    Toast.makeText(context, "Nie można otworzyć pliku. Być może został usunięty z urządzenia.", Toast.LENGTH_LONG).show()
+                                }
+                            }
+                    )
                     IconButton(onClick = { attachments.removeAt(idx) }) {
                         Icon(Icons.Default.Delete, contentDescription = "Usuń załącznik")
                     }
@@ -114,19 +136,21 @@ fun TaskDetailScreen(
         Spacer(modifier = Modifier.height(16.dp))
         Row {
             Button(onClick = {
-                onSave(
-                    Task(
-                        id = task?.id ?: 0L,
-                        title = title,
-                        description = description,
-                        createdAt = task?.createdAt ?: System.currentTimeMillis(),
-                        dueAt = dueAt,
-                        isCompleted = isCompleted,
-                        notificationEnabled = notificationEnabled,
-                        category = category,
-                        attachments = attachments.map { AttachmentItem(fileUri = it) }.toMutableList()
-                    )
+                val newTask = Task(
+                    id = task?.id ?: 0L,
+                    title = title,
+                    description = description,
+                    createdAt = task?.createdAt ?: System.currentTimeMillis(),
+                    dueAt = dueAt,
+                    isCompleted = isCompleted,
+                    notificationEnabled = notificationEnabled,
+                    category = category,
+                    attachments = attachments.map { AttachmentItem(fileUri = it) }.toMutableList()
                 )
+                onSave(newTask)
+                if (notificationEnabled) {
+                    scheduleTaskNotification(context, newTask)
+                }
             }) {
                 Text("Zapisz")
             }
@@ -134,19 +158,71 @@ fun TaskDetailScreen(
             OutlinedButton(onClick = onCancel) {
                 Text("Anuluj")
             }
+            if (task != null && onDelete != null) {
+                Spacer(modifier = Modifier.width(8.dp))
+                OutlinedButton(onClick = { onDelete(task) }) {
+                    Text("Usuń")
+                }
+            }
+            Spacer(modifier = Modifier.width(8.dp))
+            OutlinedButton(onClick = onCancel) {
+                Text("Strona główna")
+            }
         }
     }
 }
 
 // Funkcja pomocnicza do pobierania nazwy pliku z String uri
 fun getFileNameFromUri(context: Context, fileUri: String): String {
-    val uri = Uri.parse(fileUri)
-    val cursor = context.contentResolver.query(uri, null, null, null, null)
-    cursor?.use {
-        val nameIndex = it.getColumnIndex(OpenableColumns.DISPLAY_NAME)
-        if (it.moveToFirst() && nameIndex >= 0) {
-            return it.getString(nameIndex)
+    return try {
+        val uri = Uri.parse(fileUri)
+        val cursor = context.contentResolver.query(uri, null, null, null, null)
+        cursor?.use {
+            val nameIndex = it.getColumnIndex(OpenableColumns.DISPLAY_NAME)
+            if (it.moveToFirst() && nameIndex >= 0) {
+                return it.getString(nameIndex)
+            }
         }
+        uri.lastPathSegment ?: "plik"
+    } catch (e: SecurityException) {
+        "Plik niedostępny"
+    } catch (e: Exception) {
+        "Plik niedostępny"
     }
-    return uri.lastPathSegment ?: "plik"
+}
+
+fun scheduleTaskNotification(context: Context, task: Task) {
+    val alarmManager = context.getSystemService(Context.ALARM_SERVICE) as AlarmManager
+    val intent = Intent(context, NotificationReceiver::class.java).apply {
+        putExtra("taskId", task.id)
+        putExtra("title", task.title)
+        putExtra("description", task.description)
+    }
+    val pendingIntent = PendingIntent.getBroadcast(
+        context,
+        task.id.toInt(),
+        intent,
+        PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
+    )
+    try {
+        if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.S) {
+            if (alarmManager.canScheduleExactAlarms()) {
+                alarmManager.setExactAndAllowWhileIdle(
+                    AlarmManager.RTC_WAKEUP,
+                    task.dueAt ?: System.currentTimeMillis(),
+                    pendingIntent
+                )
+            } else {
+                Toast.makeText(context, "Brak uprawnień do ustawiania dokładnych alarmów!", Toast.LENGTH_LONG).show()
+            }
+        } else {
+            alarmManager.setExactAndAllowWhileIdle(
+                AlarmManager.RTC_WAKEUP,
+                task.dueAt ?: System.currentTimeMillis(),
+                pendingIntent
+            )
+        }
+    } catch (e: SecurityException) {
+        Toast.makeText(context, "Brak uprawnień do ustawiania dokładnych alarmów!", Toast.LENGTH_LONG).show()
+    }
 }
