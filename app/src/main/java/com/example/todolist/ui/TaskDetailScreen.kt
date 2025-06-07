@@ -77,6 +77,7 @@ fun TaskDetailScreen(
     val categories = listOf("Dom", "Praca", "Szkoła", "Inne")
     var expanded by remember { mutableStateOf(false) }
     var showDeleteDialog by remember { mutableStateOf(false) }
+    var showValidationError by remember { mutableStateOf(false) }
 
     Column(modifier = Modifier.padding(16.dp)) {
         OutlinedTextField(
@@ -204,9 +205,23 @@ fun TaskDetailScreen(
             }
         }
         Spacer(modifier = Modifier.height(8.dp))
+        if (showValidationError) {
+            Text(
+                text = "Uzupełnij tytuł, opis i kategorię!",
+                color = Color.Red,
+                style = MaterialTheme.typography.bodyMedium,
+                modifier = Modifier.padding(bottom = 8.dp)
+            )
+        }
         Spacer(modifier = Modifier.height(16.dp))
         Row {
             Button(onClick = {
+                if (title.isBlank() || description.isBlank() || category.isBlank()) {
+                    showValidationError = true
+                    return@Button
+                } else {
+                    showValidationError = false
+                }
                 val newTask = Task(
                     id = task?.id ?: 0L,
                     title = title,
