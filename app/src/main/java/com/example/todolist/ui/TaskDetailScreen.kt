@@ -35,8 +35,14 @@ import java.util.*
 import android.app.AlarmManager
 import android.app.PendingIntent
 import android.content.Intent
+import androidx.compose.foundation.shape.RoundedCornerShape
 import com.example.todolist.notification.NotificationReceiver
 import androidx.compose.ui.graphics.Color
+import androidx.compose.foundation.verticalScroll
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.ui.text.style.TextOverflow
+import java.io.File
+import java.io.FileOutputStream
 
 @Composable
 fun TaskDetailScreen(
@@ -72,49 +78,113 @@ fun TaskDetailScreen(
     val context = LocalContext.current
     var attachments = remember { mutableStateListOf<String>().apply { task?.attachments?.forEach { add(it.fileUri) } } }
     val filePickerLauncher = rememberLauncherForActivityResult(ActivityResultContracts.OpenMultipleDocuments()) { uris ->
-        uris?.let { attachments.addAll(it.map { uri -> uri.toString() }) }
+        uris?.forEach { uri ->
+            val internalPath = copyFileToInternalStorage(context, uri)
+            if (internalPath != null) {
+                // Dodaj ścieżkę do wewnętrznego pliku, nie URI oryginalnego pliku
+                attachments.add("file://$internalPath")
+                Toast.makeText(context, "Plik skopiowano do aplikacji", Toast.LENGTH_SHORT).show()
+            } else {
+                Toast.makeText(context, "Nie udało się skopiować pliku", Toast.LENGTH_SHORT).show()
+            }
+        }
     }
     val categories = listOf("Dom", "Praca", "Szkoła", "Inne")
     var expanded by remember { mutableStateOf(false) }
     var showDeleteDialog by remember { mutableStateOf(false) }
     var showValidationError by remember { mutableStateOf(false) }
 
-    Column(modifier = Modifier.padding(16.dp)) {
-        OutlinedTextField(
-            value = title,
-            onValueChange = { title = it },
-            label = { Text("Tytuł") },
-            modifier = Modifier.fillMaxWidth(),
-            colors = OutlinedTextFieldDefaults.colors(
-                focusedTextColor = Color.Black,
-                unfocusedTextColor = Color.Black,
-                focusedLabelColor = MaterialTheme.colorScheme.primary,
-                unfocusedLabelColor = MaterialTheme.colorScheme.primary,
-                cursorColor = MaterialTheme.colorScheme.primary
+    Column(
+        modifier = Modifier
+            .padding(16.dp)
+            .fillMaxSize()
+            .verticalScroll(rememberScrollState())
+    ) {
+        Box(
+            modifier = Modifier
+                .padding(8.dp)
+                .shadow(4.dp, shape = RoundedCornerShape(16.dp))
+                .background(Color.White, shape = RoundedCornerShape(16.dp))
+                .fillMaxWidth()
+        ) {
+            OutlinedTextField(
+                value = title,
+                onValueChange = { title = it },
+                label = { Text("Tytuł") },
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(8.dp),
+                shape = RoundedCornerShape(16.dp),
+                colors = OutlinedTextFieldDefaults.colors(
+                    focusedTextColor = Color.Black,
+                    unfocusedTextColor = Color.Black,
+                    focusedLabelColor = MaterialTheme.colorScheme.primary,
+                    unfocusedLabelColor = MaterialTheme.colorScheme.primary,
+                    cursorColor = MaterialTheme.colorScheme.primary
+                )
             )
-        )
+        }
         Spacer(modifier = Modifier.height(8.dp))
-        OutlinedTextField(
-            value = description,
-            onValueChange = { description = it },
-            label = { Text("Opis") },
-            modifier = Modifier.fillMaxWidth(),
-            colors = OutlinedTextFieldDefaults.colors(
-                focusedTextColor = Color.Black,
-                unfocusedTextColor = Color.Black,
-                focusedLabelColor = MaterialTheme.colorScheme.primary,
-                unfocusedLabelColor = MaterialTheme.colorScheme.primary,
-                cursorColor = MaterialTheme.colorScheme.primary
+        Box(
+            modifier = Modifier
+                .padding(8.dp)
+                .shadow(4.dp, shape = RoundedCornerShape(16.dp))
+                .background(Color.White, shape = RoundedCornerShape(16.dp))
+                .fillMaxWidth()
+        ) {
+            OutlinedTextField(
+                value = description,
+                onValueChange = { description = it },
+                label = { Text("Opis") },
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(8.dp),
+                shape = RoundedCornerShape(16.dp),
+                colors = OutlinedTextFieldDefaults.colors(
+                    focusedTextColor = Color.Black,
+                    unfocusedTextColor = Color.Black,
+                    focusedLabelColor = MaterialTheme.colorScheme.primary,
+                    unfocusedLabelColor = MaterialTheme.colorScheme.primary,
+                    cursorColor = MaterialTheme.colorScheme.primary
+                )
             )
-        )
-        Spacer(modifier = Modifier.height(8.dp))
-        Row(verticalAlignment = Alignment.CenterVertically) {
+        }
+        Spacer(modifier = Modifier.height(16.dp))
+        // Sekcja Zakończone
+        Row(
+            verticalAlignment = Alignment.CenterVertically,
+            modifier = Modifier
+                .padding(8.dp)
+                .shadow(4.dp, shape = RoundedCornerShape(16.dp))
+                .background(Color.White, shape = RoundedCornerShape(16.dp))
+                .fillMaxWidth()
+        ) {
             Checkbox(
                 checked = isCompleted,
-                onCheckedChange = { isCompleted = it }
+                onCheckedChange = { isCompleted = it },
+                modifier = Modifier.padding(8.dp),
+                colors = CheckboxDefaults.colors(checkedColor = MaterialTheme.colorScheme.primary)
             )
-            Text("Zakończone")
-            Spacer(modifier = Modifier.width(16.dp))
+            Text(
+                "Zakończone",
+                modifier = Modifier
+                    .padding(end = 8.dp)
+                    .align(Alignment.CenterVertically),
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+                softWrap = false
+            )
+        }
+        Spacer(modifier = Modifier.height(8.dp))
+        // Sekcja Powiadomienie
+        Row(
+            verticalAlignment = Alignment.CenterVertically,
+            modifier = Modifier
+                .padding(8.dp)
+                .shadow(4.dp, shape = RoundedCornerShape(16.dp))
+                .background(Color.White, shape = RoundedCornerShape(16.dp))
+                .fillMaxWidth()
+        ) {
             Checkbox(
                 checked = notificationEnabled,
                 onCheckedChange = {
@@ -122,26 +192,50 @@ fun TaskDetailScreen(
                     if (!it) {
                         dueAt = task?.dueAt ?: System.currentTimeMillis()
                     }
-                }
+                },
+                modifier = Modifier.padding(8.dp),
+                colors = CheckboxDefaults.colors(checkedColor = MaterialTheme.colorScheme.primary)
             )
-            Text("Powiadomienie")
+            Text(
+                text = if (notificationEnabled) "Powiadomienie włączone" else "Powiadomienie wyłączone",
+                modifier = Modifier
+                    .padding(end = 8.dp)
+                    .align(Alignment.CenterVertically),
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+                color = Color.Black
+            )
         }
-        Spacer(modifier = Modifier.height(8.dp))
+        Spacer(modifier = Modifier.height(16.dp))
         // Wybór daty i godziny wykonania zadania tylko jeśli powiadomienie jest włączone
         if (notificationEnabled) {
-            DateTimePickerField(
-                modifier = Modifier.fillMaxWidth().padding(vertical = 8.dp),
-                initialDateTime = dueAt,
-                onDateTimeSelected = { selectedDateTime ->
-                    dueAt = selectedDateTime
-                }
-            )
-            Spacer(modifier = Modifier.height(8.dp))
+            Box(
+                modifier = Modifier
+                    .padding(8.dp)
+                    .shadow(4.dp, shape = RoundedCornerShape(16.dp))
+                    .background(Color.White, shape = RoundedCornerShape(16.dp))
+                    .fillMaxWidth()
+            ) {
+                DateTimePickerField(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(16.dp),
+                    initialDateTime = dueAt,
+                    onDateTimeSelected = { selectedDateTime ->
+                        dueAt = selectedDateTime
+                    }
+                )
+            }
+            Spacer(modifier = Modifier.height(16.dp))
         }
         @OptIn(ExperimentalMaterial3Api::class)
         ExposedDropdownMenuBox(
             expanded = expanded,
-            onExpandedChange = { expanded = !expanded }
+            onExpandedChange = { expanded = !expanded },
+            modifier = Modifier
+                .padding(8.dp)
+                .shadow(4.dp, shape = RoundedCornerShape(16.dp))
+                .background(Color.White, shape = RoundedCornerShape(16.dp))
         ) {
             OutlinedTextField(
                 value = category,
@@ -150,14 +244,16 @@ fun TaskDetailScreen(
                 label = { Text("Kategoria") },
                 modifier = Modifier
                     .menuAnchor()
-                    .fillMaxWidth(),
-                    colors = OutlinedTextFieldDefaults.colors(
-                        focusedTextColor = Color.Black,
-                        unfocusedTextColor = Color.Black,
-                        focusedLabelColor = MaterialTheme.colorScheme.primary,
-                        unfocusedLabelColor = MaterialTheme.colorScheme.primary,
-                        cursorColor = MaterialTheme.colorScheme.primary
-                    ),
+                    .fillMaxWidth()
+                    .padding(8.dp),
+                shape = RoundedCornerShape(16.dp),
+                colors = OutlinedTextFieldDefaults.colors(
+                    focusedTextColor = Color.Black,
+                    unfocusedTextColor = Color.Black,
+                    focusedLabelColor = MaterialTheme.colorScheme.primary,
+                    unfocusedLabelColor = MaterialTheme.colorScheme.primary,
+                    cursorColor = MaterialTheme.colorScheme.primary
+                ),
                 trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = expanded) }
             )
             ExposedDropdownMenu(
@@ -178,84 +274,169 @@ fun TaskDetailScreen(
         }
         Spacer(modifier = Modifier.height(8.dp))
         // Obsługa załączników (lista nazw plików i przycisk dodawania)
-        Text("Załączniki:", style = MaterialTheme.typography.titleSmall)
-        Column(modifier = Modifier.fillMaxWidth()) {
-            attachments.forEachIndexed { idx, fileUri ->
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    Text(
-                        text = getFileNameFromUri(context, fileUri),
-                        modifier = Modifier
-                            .weight(1f)
-                            .clickable {
-                                try {
-                                    val intent = android.content.Intent(android.content.Intent.ACTION_VIEW).apply {
-                                        setDataAndType(Uri.parse(fileUri), context.contentResolver.getType(Uri.parse(fileUri)))
-                                        addFlags(android.content.Intent.FLAG_GRANT_READ_URI_PERMISSION)
+        Box(
+            modifier = Modifier
+                .padding(8.dp)
+                .shadow(4.dp, shape = RoundedCornerShape(16.dp))
+                .background(Color.White, shape = RoundedCornerShape(16.dp))
+                .fillMaxWidth()
+        ) {
+            Column(modifier = Modifier.padding(8.dp)) {
+                Text("Załączniki:", style = MaterialTheme.typography.titleSmall)
+                attachments.forEachIndexed { idx, fileUri ->
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Text(
+                            text = getFileNameFromUri(context, fileUri),
+                            modifier = Modifier
+                                .weight(1f)
+                                .clickable {
+                                    try {
+                                        // Sprawdź czy to wewnętrzny plik (zaczyna się od "file://")
+                                        if (fileUri.startsWith("file://")) {
+                                            val filePath = fileUri.substring(7) // Usuń "file://" z początku
+                                            val file = File(filePath)
+
+                                            if (file.exists()) {
+                                                // Określ typ MIME na podstawie rozszerzenia pliku
+                                                val mimeType = getMimeType(file.name)
+
+                                                // Utwórz FileProvider URI dla pliku wewnętrznego
+                                                val authority = "${context.packageName}.fileprovider"
+                                                val fileProviderUri = androidx.core.content.FileProvider.getUriForFile(
+                                                    context,
+                                                    authority,
+                                                    file
+                                                )
+
+                                                val intent = Intent(Intent.ACTION_VIEW).apply {
+                                                    setDataAndType(fileProviderUri, mimeType)
+                                                    addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+                                                }
+
+                                                // Sprawdź czy istnieje aplikacja, która może obsłużyć ten typ pliku
+                                                if (intent.resolveActivity(context.packageManager) != null) {
+                                                    context.startActivity(intent)
+                                                } else {
+                                                    Toast.makeText(context, "Brak aplikacji do otwarcia tego typu pliku", Toast.LENGTH_LONG).show()
+                                                }
+                                            } else {
+                                                Toast.makeText(context, "Plik nie istnieje: $filePath", Toast.LENGTH_LONG).show()
+                                            }
+                                        } else {
+                                            // Stara logika dla zewnętrznych URI
+                                            val uri = Uri.parse(fileUri)
+                                            val mimeType = context.contentResolver.getType(uri)
+                                            val intent = Intent(Intent.ACTION_VIEW).apply {
+                                                setDataAndType(uri, mimeType)
+                                                addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+                                            }
+                                            context.startActivity(intent)
+                                        }
+                                    } catch (e: Exception) {
+                                        e.printStackTrace()
+                                        Toast.makeText(context, "Błąd podczas otwierania pliku: ${e.localizedMessage ?: e.toString()}", Toast.LENGTH_LONG).show()
                                     }
-                                    context.startActivity(intent)
-                                } catch (e: Exception) {
-                                    Toast.makeText(context, "Nie można otworzyć pliku. Być może został usunięty z urządzenia.", Toast.LENGTH_LONG).show()
                                 }
-                            }
-                    )
-                    IconButton(onClick = { attachments.removeAt(idx) }) {
-                        Icon(Icons.Default.Delete, contentDescription = "Usuń załącznik")
+                        )
+                        IconButton(onClick = { attachments.removeAt(idx) }) {
+                            Icon(Icons.Default.Delete, contentDescription = "Usuń załącznik")
+                        }
                     }
                 }
-            }
-            Button(onClick = {
-                // Otwórz picker plików (dowolny typ)
-                filePickerLauncher.launch(arrayOf("image/*", "application/pdf", "text/plain", "application/msword", "application/vnd.openxmlformats-officedocument.wordprocessingml.document", "application/vnd.ms-excel", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", "*/*"))
-            }) {
-                Text("Dodaj załącznik")
+                Button(onClick = {
+                    // Otwórz picker plików (dowolny typ)
+                    filePickerLauncher.launch(arrayOf("image/*", "application/pdf", "text/plain", "application/msword", "application/vnd.openxmlformats-officedocument.wordprocessingml.document", "application/vnd.ms-excel", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", "*/*"))
+                },
+                modifier = Modifier
+                    .padding(top = 8.dp)
+                    .shadow(2.dp, shape = RoundedCornerShape(12.dp))
+                    .background(MaterialTheme.colorScheme.primary, shape = RoundedCornerShape(12.dp))
+                ) {
+                    Text("Dodaj załącznik", color = Color.White)
+                }
             }
         }
         Spacer(modifier = Modifier.height(8.dp))
         if (showValidationError) {
-            Text(
-                text = "Uzupełnij tytuł, opis i kategorię!",
-                color = Color.Red,
-                style = MaterialTheme.typography.bodyMedium,
-                modifier = Modifier.padding(bottom = 8.dp)
-            )
+            Box(
+                modifier = Modifier
+                    .padding(8.dp)
+                    .shadow(2.dp, shape = RoundedCornerShape(12.dp))
+                    .background(Color(0xFFFFE0E0), shape = RoundedCornerShape(12.dp))
+                    .fillMaxWidth()
+            ) {
+                Text(
+                    text = "Uzupełnij tytuł, opis i kategorię!",
+                    color = Color.Red,
+                    style = MaterialTheme.typography.bodyMedium,
+                    modifier = Modifier.padding(16.dp)
+                )
+            }
         }
         Spacer(modifier = Modifier.height(16.dp))
-        Row {
-            Button(onClick = {
-                if (title.isBlank() || description.isBlank() || category.isBlank()) {
-                    showValidationError = true
-                    return@Button
-                } else {
-                    showValidationError = false
-                }
-                val newTask = Task(
-                    id = task?.id ?: 0L,
-                    title = title,
-                    description = description,
-                    createdAt = task?.createdAt ?: System.currentTimeMillis(),
-                    dueAt = dueAt,
-                    isCompleted = isCompleted,
-                    notificationEnabled = notificationEnabled,
-                    category = category,
-                    attachments = attachments.map { AttachmentItem(fileUri = it) }.toMutableList()
-                )
-                onSave(newTask)
-                if (notificationEnabled) {
-                    scheduleTaskNotification(context, newTask)
-                }
-            }) {
-                Icon(Icons.Filled.Save, contentDescription = "Zapisz")
+        Row(
+            modifier = Modifier
+                .padding(8.dp)
+                .shadow(4.dp, shape = RoundedCornerShape(16.dp))
+                .background(Color.White, shape = RoundedCornerShape(16.dp))
+                .fillMaxWidth(),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Button(
+                onClick = {
+                    if (title.isBlank() || description.isBlank() || category.isBlank()) {
+                        showValidationError = true
+                        return@Button
+                    } else {
+                        showValidationError = false
+                    }
+                    val newTask = Task(
+                        id = task?.id ?: 0L,
+                        title = title,
+                        description = description,
+                        createdAt = task?.createdAt ?: System.currentTimeMillis(),
+                        dueAt = dueAt,
+                        isCompleted = isCompleted,
+                        notificationEnabled = notificationEnabled,
+                        category = category,
+                        attachments = attachments.map { AttachmentItem(fileUri = it) }.toMutableList()
+                    )
+                    onSave(newTask)
+                    if (notificationEnabled) {
+                        scheduleTaskNotification(context, newTask)
+                    }
+                },
+                modifier = Modifier
+                    .padding(8.dp)
+                    .shadow(2.dp, shape = RoundedCornerShape(12.dp))
+                    .background(MaterialTheme.colorScheme.primary, shape = RoundedCornerShape(12.dp))
+            ) {
+                Icon(Icons.Filled.Save, contentDescription = "Zapisz", tint = Color.White)
             }
             Spacer(modifier = Modifier.width(8.dp))
             if (task != null && onDelete != null) {
                 Spacer(modifier = Modifier.width(8.dp))
-                OutlinedButton(onClick = { showDeleteDialog = true }) {
+                Button(
+                    onClick = { showDeleteDialog = true },
+                    modifier = Modifier
+                        .padding(8.dp)
+                        .shadow(2.dp, shape = RoundedCornerShape(12.dp)),
+                    shape = RoundedCornerShape(12.dp)
+                ) {
                     Icon(Icons.Filled.Delete, contentDescription = "Usuń")
                 }
             }
             Spacer(modifier = Modifier.width(8.dp))
-            OutlinedButton(onClick = onCancel) {
-                Icon(Icons.Filled.Home, contentDescription = "Strona główna")
+            Button(
+                onClick = onCancel,
+                modifier = Modifier
+                    .padding(8.dp)
+                    .shadow(2.dp, shape = RoundedCornerShape(12.dp))
+                    .background(MaterialTheme.colorScheme.primary, shape = RoundedCornerShape(12.dp)),
+                shape = RoundedCornerShape(12.dp),
+                colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primary)
+            ) {
+                Icon(Icons.Filled.Home, contentDescription = "Strona główna", tint = Color.White)
             }
         }
         if (showDeleteDialog) {
@@ -300,6 +481,30 @@ fun getFileNameFromUri(context: Context, fileUri: String): String {
     }
 }
 
+fun copyFileToInternalStorage(context: Context, sourceUri: Uri): String? {
+    return try {
+        val fileName = getFileNameFromUri(context, sourceUri.toString())
+        val contentResolver = context.contentResolver
+        val destinationFile = File(context.filesDir, "${System.currentTimeMillis()}_$fileName")
+
+        contentResolver.openInputStream(sourceUri)?.use { inputStream ->
+            FileOutputStream(destinationFile).use { outputStream ->
+                val buffer = ByteArray(4 * 1024) // 4kb buffer
+                var read: Int
+                while (inputStream.read(buffer).also { read = it } != -1) {
+                    outputStream.write(buffer, 0, read)
+                }
+                outputStream.flush()
+            }
+        }
+
+        destinationFile.absolutePath
+    } catch (e: Exception) {
+        e.printStackTrace()
+        null
+    }
+}
+
 fun scheduleTaskNotification(context: Context, task: Task) {
     val alarmManager = context.getSystemService(Context.ALARM_SERVICE) as AlarmManager
     val intent = Intent(context, NotificationReceiver::class.java).apply {
@@ -333,5 +538,22 @@ fun scheduleTaskNotification(context: Context, task: Task) {
         }
     } catch (e: SecurityException) {
         Toast.makeText(context, "Brak uprawnień do ustawiania dokładnych alarmów!", Toast.LENGTH_LONG).show()
+    }
+}
+
+// Funkcja do określania typu MIME pliku na podstawie jego rozszerzenia
+fun getMimeType(fileName: String): String {
+    val extension = fileName.substringAfterLast('.', "").lowercase()
+    return when (extension) {
+        "jpg", "jpeg" -> "image/jpeg"
+        "png" -> "image/png"
+        "gif" -> "image/gif"
+        "pdf" -> "application/pdf"
+        "txt" -> "text/plain"
+        "doc" -> "application/msword"
+        "docx" -> "application/vnd.openxmlformats-officedocument.wordprocessingml.document"
+        "xls" -> "application/vnd.ms-excel"
+        "xlsx" -> "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+        else -> "application/octet-stream" // Ogólny typ binarny dla nieznanych rozszerzeń
     }
 }
