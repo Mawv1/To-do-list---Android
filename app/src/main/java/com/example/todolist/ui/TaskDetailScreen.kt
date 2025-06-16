@@ -74,6 +74,7 @@ fun TaskDetailScreen(
     var dueAt by remember { mutableStateOf(task?.dueAt ?: System.currentTimeMillis()) }
     var isCompleted by remember { mutableStateOf(task?.isCompleted ?: false) }
     var notificationEnabled by remember { mutableStateOf(task?.notificationEnabled ?: false) }
+    var notificationMinutesInAdvance by remember { mutableStateOf(task?.notificationMinutesInAdvance ?: 0) }
     var category by remember { mutableStateOf(task?.category ?: "") }
     val context = LocalContext.current
     var attachments = remember { mutableStateListOf<String>().apply { task?.attachments?.forEach { add(it.fileUri) } } }
@@ -90,16 +91,23 @@ fun TaskDetailScreen(
         }
     }
     val categories = listOf("Dom", "Praca", "Szkoła", "Inne")
-    var expanded by remember { mutableStateOf(false) }
+    val notificationAdvanceOptions = listOf(0, 5, 10, 15, 30, 60) // Opcje w minutach
+    var expandedCategory by remember { mutableStateOf(false) }
+    var expandedNotificationMinutes by remember { mutableStateOf(false) }
     var showDeleteDialog by remember { mutableStateOf(false) }
     var showValidationError by remember { mutableStateOf(false) }
 
+//    Spacer(modifier = Modifier.height(16.dp))
+
     Column(
         modifier = Modifier
-            .padding(16.dp)
+            .padding(start = 16.dp, end = 16.dp, top = 32.dp, bottom = 40.dp)
             .fillMaxSize()
             .verticalScroll(rememberScrollState())
     ) {
+
+
+        // Tytuł
         Box(
             modifier = Modifier
                 .padding(8.dp)
@@ -124,7 +132,10 @@ fun TaskDetailScreen(
                 )
             )
         }
-        Spacer(modifier = Modifier.height(8.dp))
+
+        Spacer(modifier = Modifier.height(16.dp))
+
+        // Opis
         Box(
             modifier = Modifier
                 .padding(8.dp)
@@ -149,7 +160,57 @@ fun TaskDetailScreen(
                 )
             )
         }
+
         Spacer(modifier = Modifier.height(16.dp))
+
+        // Wybór kategorii
+        @OptIn(ExperimentalMaterial3Api::class)
+        ExposedDropdownMenuBox(
+            expanded = expandedCategory,
+            onExpandedChange = { expandedCategory = !expandedCategory },
+            modifier = Modifier
+                .padding(8.dp)
+                .shadow(4.dp, shape = RoundedCornerShape(16.dp))
+                .background(Color.White, shape = RoundedCornerShape(16.dp))
+                .fillMaxWidth()
+        ) {
+            OutlinedTextField(
+                value = category,
+                onValueChange = {},
+                readOnly = true,
+                label = { Text("Kategoria") },
+                modifier = Modifier
+                    .menuAnchor()
+                    .fillMaxWidth()
+                    .padding(8.dp),
+                shape = RoundedCornerShape(16.dp),
+                colors = OutlinedTextFieldDefaults.colors(
+                    focusedTextColor = Color.Black,
+                    unfocusedTextColor = Color.Black,
+                    focusedLabelColor = MaterialTheme.colorScheme.primary,
+                    unfocusedLabelColor = MaterialTheme.colorScheme.primary,
+                    cursorColor = MaterialTheme.colorScheme.primary
+                ),
+                trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = expandedCategory) }
+            )
+            ExposedDropdownMenu(
+                expanded = expandedCategory,
+                onDismissRequest = { expandedCategory = false },
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                categories.forEach { cat ->
+                    DropdownMenuItem(
+                        text = { Text(cat) },
+                        onClick = {
+                            category = cat
+                            expandedCategory = false
+                        }
+                    )
+                }
+            }
+        }
+        Spacer(modifier = Modifier.height(16.dp))
+
         // Sekcja Zakończone
         Row(
             verticalAlignment = Alignment.CenterVertically,
@@ -175,7 +236,9 @@ fun TaskDetailScreen(
                 softWrap = false
             )
         }
-        Spacer(modifier = Modifier.height(8.dp))
+
+        Spacer(modifier = Modifier.height(16.dp))
+
         // Sekcja Powiadomienie
         Row(
             verticalAlignment = Alignment.CenterVertically,
@@ -227,53 +290,57 @@ fun TaskDetailScreen(
                 )
             }
             Spacer(modifier = Modifier.height(16.dp))
-        }
-        @OptIn(ExperimentalMaterial3Api::class)
-        ExposedDropdownMenuBox(
-            expanded = expanded,
-            onExpandedChange = { expanded = !expanded },
-            modifier = Modifier
-                .padding(8.dp)
-                .shadow(4.dp, shape = RoundedCornerShape(16.dp))
-                .background(Color.White, shape = RoundedCornerShape(16.dp))
-        ) {
-            OutlinedTextField(
-                value = category,
-                onValueChange = {},
-                readOnly = true,
-                label = { Text("Kategoria") },
+
+            // Wybór minut wyprzedzenia powiadomienia
+            @OptIn(ExperimentalMaterial3Api::class)
+            ExposedDropdownMenuBox(
+                expanded = expandedNotificationMinutes,
+                onExpandedChange = { expandedNotificationMinutes = !expandedNotificationMinutes },
                 modifier = Modifier
-                    .menuAnchor()
-                    .fillMaxWidth()
-                    .padding(8.dp),
-                shape = RoundedCornerShape(16.dp),
-                colors = OutlinedTextFieldDefaults.colors(
-                    focusedTextColor = Color.Black,
-                    unfocusedTextColor = Color.Black,
-                    focusedLabelColor = MaterialTheme.colorScheme.primary,
-                    unfocusedLabelColor = MaterialTheme.colorScheme.primary,
-                    cursorColor = MaterialTheme.colorScheme.primary
-                ),
-                trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = expanded) }
-            )
-            ExposedDropdownMenu(
-                expanded = expanded,
-                onDismissRequest = { expanded = false },
-                modifier = Modifier.fillMaxWidth()
+                    .padding(8.dp)
+                    .shadow(4.dp, shape = RoundedCornerShape(16.dp))
+                    .background(Color.White, shape = RoundedCornerShape(16.dp))
             ) {
-                categories.forEach { cat ->
-                    DropdownMenuItem(
-                        text = { Text(cat) },
-                        onClick = {
-                            category = cat
-                            expanded = false
-                        }
-                    )
+                OutlinedTextField(
+                    value = if (notificationMinutesInAdvance == 0) "Brak wyprzedzenia" else "$notificationMinutesInAdvance minut(y)",
+                    onValueChange = {},
+                    readOnly = true,
+                    label = { Text("Wyprzedzenie powiadomienia (minuty)") },
+                    modifier = Modifier
+                        .menuAnchor()
+                        .fillMaxWidth()
+                        .padding(8.dp),
+                    shape = RoundedCornerShape(16.dp),
+                    colors = OutlinedTextFieldDefaults.colors(
+                        focusedTextColor = Color.Black,
+                        unfocusedTextColor = Color.Black,
+                        focusedLabelColor = MaterialTheme.colorScheme.primary,
+                        unfocusedLabelColor = MaterialTheme.colorScheme.primary,
+                        cursorColor = MaterialTheme.colorScheme.primary
+                    ),
+                    trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = expandedNotificationMinutes) }
+                )
+                ExposedDropdownMenu(
+                    expanded = expandedNotificationMinutes,
+                    onDismissRequest = { expandedNotificationMinutes = false },
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    notificationAdvanceOptions.forEach { minutes ->
+                        DropdownMenuItem(
+                            text = { Text(if (minutes == 0) "Brak wyprzedzenia" else "$minutes minut(y)") },
+                            onClick = {
+                                notificationMinutesInAdvance = minutes
+                                expandedNotificationMinutes = false
+                            }
+                        )
+                    }
                 }
             }
+            Spacer(modifier = Modifier.height(16.dp))
+
         }
-        Spacer(modifier = Modifier.height(8.dp))
-        // Obsługa załączników (lista nazw plików i przycisk dodawania)
+
+        // Obsługa załączników
         Box(
             modifier = Modifier
                 .padding(8.dp)
@@ -373,7 +440,8 @@ fun TaskDetailScreen(
                 )
             }
         }
-        Spacer(modifier = Modifier.height(16.dp))
+
+        Spacer(modifier = Modifier.height(8.dp))
         Row(
             modifier = Modifier
                 .padding(8.dp)
@@ -398,6 +466,7 @@ fun TaskDetailScreen(
                         dueAt = dueAt,
                         isCompleted = isCompleted,
                         notificationEnabled = notificationEnabled,
+                        notificationMinutesInAdvance = notificationMinutesInAdvance,
                         category = category,
                         attachments = attachments.map { AttachmentItem(fileUri = it) }.toMutableList()
                     )
@@ -420,8 +489,10 @@ fun TaskDetailScreen(
                     onClick = { showDeleteDialog = true },
                     modifier = Modifier
                         .padding(8.dp)
-                        .shadow(2.dp, shape = RoundedCornerShape(12.dp)),
-                    shape = RoundedCornerShape(12.dp)
+                        .shadow(2.dp, shape = RoundedCornerShape(12.dp))
+                        .background(MaterialTheme.colorScheme.primary, shape = RoundedCornerShape(12.dp))
+
+//                    shape = RoundedCornerShape(12.dp)
                 ) {
                     Icon(Icons.Filled.Delete, contentDescription = "Usuń")
                 }
@@ -518,23 +589,41 @@ fun scheduleTaskNotification(context: Context, task: Task) {
         intent,
         PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
     )
+
     try {
+        // Oblicz czas powiadomienia uwzględniając wyprzedzenie w minutach
+        val taskDueTime = task.dueAt ?: System.currentTimeMillis()
+        val notificationTimeInMillis = taskDueTime - (task.notificationMinutesInAdvance * 60 * 1000)
+
+        // Jeśli czas powiadomienia jest w przeszłości, pokaż powiadomienie natychmiast
+        val actualNotificationTime = if (notificationTimeInMillis <= System.currentTimeMillis()) {
+            System.currentTimeMillis() + 5000 // 5 sekund od teraz
+        } else {
+            notificationTimeInMillis
+        }
+
         if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.S) {
             if (alarmManager.canScheduleExactAlarms()) {
                 alarmManager.setExactAndAllowWhileIdle(
                     AlarmManager.RTC_WAKEUP,
-                    task.dueAt ?: System.currentTimeMillis(),
+                    actualNotificationTime,
                     pendingIntent
                 )
+                // Pokaż potwierdzenie z informacją o czasie powiadomienia
+                val notificationDate = SimpleDateFormat("dd.MM.yyyy HH:mm", Locale.getDefault()).format(Date(actualNotificationTime))
+                Toast.makeText(context, "Powiadomienie zaplanowane na: $notificationDate", Toast.LENGTH_LONG).show()
             } else {
                 Toast.makeText(context, "Brak uprawnień do ustawiania dokładnych alarmów!", Toast.LENGTH_LONG).show()
             }
         } else {
             alarmManager.setExactAndAllowWhileIdle(
                 AlarmManager.RTC_WAKEUP,
-                task.dueAt ?: System.currentTimeMillis(),
+                actualNotificationTime,
                 pendingIntent
             )
+            // Pokaż potwierdzenie z informacją o czasie powiadomienia
+            val notificationDate = SimpleDateFormat("dd.MM.yyyy HH:mm", Locale.getDefault()).format(Date(actualNotificationTime))
+            Toast.makeText(context, "Powiadomienie zaplanowane na: $notificationDate", Toast.LENGTH_LONG).show()
         }
     } catch (e: SecurityException) {
         Toast.makeText(context, "Brak uprawnień do ustawiania dokładnych alarmów!", Toast.LENGTH_LONG).show()

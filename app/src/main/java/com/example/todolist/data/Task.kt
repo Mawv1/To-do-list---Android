@@ -14,7 +14,7 @@ data class Task(
     val dueAt: Long?,
     val isCompleted: Boolean = false,
     val notificationEnabled: Boolean = false,
+    val notificationMinutesInAdvance: Int = 0, // Ile minut przed terminem ma być wysłane powiadomienie
     val category: String? = null,
     val attachments: List<AttachmentItem> = emptyList()
     )
-
