@@ -24,8 +24,10 @@ import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
 import androidx.navigation.navArgument
+import com.example.todolist.data.AppSettingsManager
 import com.example.todolist.data.TaskDatabase
 import com.example.todolist.repo.TaskRepository
+import com.example.todolist.ui.SettingsScreen
 import com.example.todolist.ui.TaskDetailScreen
 import com.example.todolist.ui.TaskListScreen
 import com.example.todolist.ui.theme.ToDoListTheme
@@ -38,7 +40,6 @@ class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
-        // Prośba o uprawnienie do powiadomień na Android 13+
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
             val requestPermissionLauncher = registerForActivityResult(
                 ActivityResultContracts.RequestPermission()
@@ -47,7 +48,9 @@ class MainActivity : ComponentActivity() {
         }
         val db = TaskDatabase.getDatabase(applicationContext)
         val repository = TaskRepository(db.taskDao())
-        val factory = TaskViewModelFactory(repository)
+        val settingsManager = AppSettingsManager(applicationContext)
+        val factory = TaskViewModelFactory(repository, settingsManager)
+
         setContent {
             ToDoListTheme(darkTheme = isSystemInDarkTheme(), dynamicColor = false) {
                 val navController = rememberNavController()
@@ -56,13 +59,13 @@ class MainActivity : ComponentActivity() {
                 // Obsługa taskId z powiadomienia
                 val startTaskId = intent?.getLongExtra("taskId", 0L) ?: 0L
                 val startDestination = if (startTaskId != 0L) "detail/$startTaskId" else "list"
-                // Po usunięciu taska wracaj na listę
                 NavHost(navController = navController, startDestination = startDestination) {
                     composable("list") {
                         TaskListScreen(
                             viewModel = viewModel,
                             onAddTask = { navController.navigate("detail") },
-                            onTaskClick = { task -> navController.navigate("detail/${task.id}") }
+                            onTaskClick = { task -> navController.navigate("detail/${task.id}") },
+                            onSettingsClick = { navController.navigate("settings") }
                         )
                     }
                     composable(
@@ -113,6 +116,15 @@ class MainActivity : ComponentActivity() {
                                     popUpTo("list") { inclusive = true }
                                     launchSingleTop = true
                                 }
+                            }
+                        )
+                    }
+
+                    // Dodajemy ekran ustawień
+                    composable("settings") {
+                        SettingsScreen(
+                            onNavigateBack = {
+                                navController.popBackStack()
                             }
                         )
                     }

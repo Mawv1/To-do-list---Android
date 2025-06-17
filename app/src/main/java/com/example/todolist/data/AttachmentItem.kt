@@ -8,7 +8,7 @@ import androidx.room.PrimaryKey
 data class AttachmentItem(
     @PrimaryKey(autoGenerate = true) val id: Long = 0L,
     val taskId: Long = 0L,
-    val fileUri: String, // URI pliku z pickera jako String
+    val fileUri: String,
     val createdAt: Long = System.currentTimeMillis()
 )
 

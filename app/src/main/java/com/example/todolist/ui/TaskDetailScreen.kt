@@ -41,6 +41,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.ui.text.style.TextOverflow
+import com.example.todolist.data.AppSettingsManager
 import java.io.File
 import java.io.FileOutputStream
 
@@ -74,15 +75,20 @@ fun TaskDetailScreen(
     var dueAt by remember { mutableStateOf(task?.dueAt ?: System.currentTimeMillis()) }
     var isCompleted by remember { mutableStateOf(task?.isCompleted ?: false) }
     var notificationEnabled by remember { mutableStateOf(task?.notificationEnabled ?: false) }
-    var notificationMinutesInAdvance by remember { mutableStateOf(task?.notificationMinutesInAdvance ?: 0) }
-    var category by remember { mutableStateOf(task?.category ?: "") }
+
+    // Pobierz domyślny czas wyprzedzenia powiadomień z ustawień aplikacji
     val context = LocalContext.current
-    var attachments = remember { mutableStateListOf<String>().apply { task?.attachments?.forEach { add(it.fileUri) } } }
+    val settingsManager = remember { AppSettingsManager(context) }
+    val defaultNotificationMinutes = settingsManager.defaultNotificationMinutes.collectAsState(initial = task?.notificationMinutesInAdvance ?: 15)
+
+    var isPastTimeError by remember { mutableStateOf(false) }
+
+    var category by remember { mutableStateOf(task?.category ?: "") }
+    val attachments = remember { mutableStateListOf<String>().apply { task?.attachments?.forEach { add(it.fileUri) } } }
     val filePickerLauncher = rememberLauncherForActivityResult(ActivityResultContracts.OpenMultipleDocuments()) { uris ->
         uris?.forEach { uri ->
             val internalPath = copyFileToInternalStorage(context, uri)
             if (internalPath != null) {
-                // Dodaj ścieżkę do wewnętrznego pliku, nie URI oryginalnego pliku
                 attachments.add("file://$internalPath")
                 Toast.makeText(context, "Plik skopiowano do aplikacji", Toast.LENGTH_SHORT).show()
             } else {
@@ -91,13 +97,19 @@ fun TaskDetailScreen(
         }
     }
     val categories = listOf("Dom", "Praca", "Szkoła", "Inne")
-    val notificationAdvanceOptions = listOf(0, 5, 10, 15, 30, 60) // Opcje w minutach
     var expandedCategory by remember { mutableStateOf(false) }
-    var expandedNotificationMinutes by remember { mutableStateOf(false) }
     var showDeleteDialog by remember { mutableStateOf(false) }
     var showValidationError by remember { mutableStateOf(false) }
 
-//    Spacer(modifier = Modifier.height(16.dp))
+    // Aktualizujemy stan błędu czasu w przeszłości gdy zmienia się dueAt lub notificationEnabled
+    LaunchedEffect(dueAt, notificationEnabled) {
+        if (notificationEnabled) {
+            val notificationTimeInMillis = dueAt - (defaultNotificationMinutes.value * 60 * 1000)
+            isPastTimeError = notificationTimeInMillis <= System.currentTimeMillis()
+        } else {
+            isPastTimeError = false
+        }
+    }
 
     Column(
         modifier = Modifier
@@ -291,53 +303,6 @@ fun TaskDetailScreen(
             }
             Spacer(modifier = Modifier.height(16.dp))
 
-            // Wybór minut wyprzedzenia powiadomienia
-            @OptIn(ExperimentalMaterial3Api::class)
-            ExposedDropdownMenuBox(
-                expanded = expandedNotificationMinutes,
-                onExpandedChange = { expandedNotificationMinutes = !expandedNotificationMinutes },
-                modifier = Modifier
-                    .padding(8.dp)
-                    .shadow(4.dp, shape = RoundedCornerShape(16.dp))
-                    .background(Color.White, shape = RoundedCornerShape(16.dp))
-            ) {
-                OutlinedTextField(
-                    value = if (notificationMinutesInAdvance == 0) "Brak wyprzedzenia" else "$notificationMinutesInAdvance minut(y)",
-                    onValueChange = {},
-                    readOnly = true,
-                    label = { Text("Wyprzedzenie powiadomienia (minuty)") },
-                    modifier = Modifier
-                        .menuAnchor()
-                        .fillMaxWidth()
-                        .padding(8.dp),
-                    shape = RoundedCornerShape(16.dp),
-                    colors = OutlinedTextFieldDefaults.colors(
-                        focusedTextColor = Color.Black,
-                        unfocusedTextColor = Color.Black,
-                        focusedLabelColor = MaterialTheme.colorScheme.primary,
-                        unfocusedLabelColor = MaterialTheme.colorScheme.primary,
-                        cursorColor = MaterialTheme.colorScheme.primary
-                    ),
-                    trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = expandedNotificationMinutes) }
-                )
-                ExposedDropdownMenu(
-                    expanded = expandedNotificationMinutes,
-                    onDismissRequest = { expandedNotificationMinutes = false },
-                    modifier = Modifier.fillMaxWidth()
-                ) {
-                    notificationAdvanceOptions.forEach { minutes ->
-                        DropdownMenuItem(
-                            text = { Text(if (minutes == 0) "Brak wyprzedzenia" else "$minutes minut(y)") },
-                            onClick = {
-                                notificationMinutesInAdvance = minutes
-                                expandedNotificationMinutes = false
-                            }
-                        )
-                    }
-                }
-            }
-            Spacer(modifier = Modifier.height(16.dp))
-
         }
 
         // Obsługa załączników
@@ -401,7 +366,7 @@ fun TaskDetailScreen(
                                         }
                                     } catch (e: Exception) {
                                         e.printStackTrace()
-                                        Toast.makeText(context, "Błąd podczas otwierania pliku: ${e.localizedMessage ?: e.toString()}", Toast.LENGTH_LONG).show()
+                                        Toast.makeText(context, "Błąd podczas otwarcia pliku: ${e.localizedMessage ?: e.toString()}", Toast.LENGTH_LONG).show()
                                     }
                                 }
                         )
@@ -441,6 +406,23 @@ fun TaskDetailScreen(
             }
         }
 
+        if (isPastTimeError) {
+            Box(
+                modifier = Modifier
+                    .padding(8.dp)
+                    .shadow(2.dp, shape = RoundedCornerShape(12.dp))
+                    .background(Color(0xFFFFE0E0), shape = RoundedCornerShape(12.dp))
+                    .fillMaxWidth()
+            ) {
+                Text(
+                    text = "Czas powiadomienia ustawiony w przeszłości! Wybierz późniejszą datę.",
+                    color = Color.Red,
+                    style = MaterialTheme.typography.bodyMedium,
+                    modifier = Modifier.padding(16.dp)
+                )
+            }
+        }
+
         Spacer(modifier = Modifier.height(8.dp))
         Row(
             modifier = Modifier
@@ -458,6 +440,12 @@ fun TaskDetailScreen(
                     } else {
                         showValidationError = false
                     }
+
+                    // Sprawdzamy czy nie ma błędu czasu w przeszłości przed zapisem
+                    if (isPastTimeError) {
+                        return@Button  // Blokujemy możliwość zapisania zadania
+                    }
+
                     val newTask = Task(
                         id = task?.id ?: 0L,
                         title = title,
@@ -466,7 +454,8 @@ fun TaskDetailScreen(
                         dueAt = dueAt,
                         isCompleted = isCompleted,
                         notificationEnabled = notificationEnabled,
-                        notificationMinutesInAdvance = notificationMinutesInAdvance,
+                        // Używamy wartości z ustawień aplikacji zamiast wartości z zadania
+                        notificationMinutesInAdvance = defaultNotificationMinutes.value,
                         category = category,
                         attachments = attachments.map { AttachmentItem(fileUri = it) }.toMutableList()
                     )
@@ -491,8 +480,6 @@ fun TaskDetailScreen(
                         .padding(8.dp)
                         .shadow(2.dp, shape = RoundedCornerShape(12.dp))
                         .background(MaterialTheme.colorScheme.primary, shape = RoundedCornerShape(12.dp))
-
-//                    shape = RoundedCornerShape(12.dp)
                 ) {
                     Icon(Icons.Filled.Delete, contentDescription = "Usuń")
                 }
@@ -560,7 +547,7 @@ fun copyFileToInternalStorage(context: Context, sourceUri: Uri): String? {
 
         contentResolver.openInputStream(sourceUri)?.use { inputStream ->
             FileOutputStream(destinationFile).use { outputStream ->
-                val buffer = ByteArray(4 * 1024) // 4kb buffer
+                val buffer = ByteArray(4 * 1024)
                 var read: Int
                 while (inputStream.read(buffer).also { read = it } != -1) {
                     outputStream.write(buffer, 0, read)
@@ -591,13 +578,11 @@ fun scheduleTaskNotification(context: Context, task: Task) {
     )
 
     try {
-        // Oblicz czas powiadomienia uwzględniając wyprzedzenie w minutach
         val taskDueTime = task.dueAt ?: System.currentTimeMillis()
         val notificationTimeInMillis = taskDueTime - (task.notificationMinutesInAdvance * 60 * 1000)
 
-        // Jeśli czas powiadomienia jest w przeszłości, pokaż powiadomienie natychmiast
         val actualNotificationTime = if (notificationTimeInMillis <= System.currentTimeMillis()) {
-            System.currentTimeMillis() + 5000 // 5 sekund od teraz
+            System.currentTimeMillis() + 5000
         } else {
             notificationTimeInMillis
         }
@@ -609,7 +594,6 @@ fun scheduleTaskNotification(context: Context, task: Task) {
                     actualNotificationTime,
                     pendingIntent
                 )
-                // Pokaż potwierdzenie z informacją o czasie powiadomienia
                 val notificationDate = SimpleDateFormat("dd.MM.yyyy HH:mm", Locale.getDefault()).format(Date(actualNotificationTime))
                 Toast.makeText(context, "Powiadomienie zaplanowane na: $notificationDate", Toast.LENGTH_LONG).show()
             } else {
@@ -621,7 +605,6 @@ fun scheduleTaskNotification(context: Context, task: Task) {
                 actualNotificationTime,
                 pendingIntent
             )
-            // Pokaż potwierdzenie z informacją o czasie powiadomienia
             val notificationDate = SimpleDateFormat("dd.MM.yyyy HH:mm", Locale.getDefault()).format(Date(actualNotificationTime))
             Toast.makeText(context, "Powiadomienie zaplanowane na: $notificationDate", Toast.LENGTH_LONG).show()
         }

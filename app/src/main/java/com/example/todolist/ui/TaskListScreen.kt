@@ -6,6 +6,7 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
+import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -22,29 +23,56 @@ import com.example.todolist.viewmodel.TaskViewModel
 fun TaskListScreen(
     viewModel: TaskViewModel,
     onAddTask: () -> Unit,
-    onTaskClick: (Task) -> Unit
+    onTaskClick: (Task) -> Unit,
+    onSettingsClick: () -> Unit
 ) {
     val tasks by viewModel.tasks.collectAsState()
     val searchQuery by viewModel.searchQuery.collectAsState()
 
-    Column(modifier = Modifier.fillMaxSize()) {
-        OutlinedTextField(
-            value = searchQuery,
-            onValueChange = { viewModel.setSearchQuery(it) },
-            label = { Text("Szukaj zadań") },
+    // Sortowanie zadań: niezakończone na górze, zakończone na dole
+    val sortedTasks = tasks.sortedBy { it.isCompleted }
+
+    Column(modifier = Modifier.fillMaxSize().padding(top=16.dp)) {
+        Row(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(8.dp, top=16.dp),
-            colors = OutlinedTextFieldDefaults.colors(
-                focusedTextColor = Color.Black,
-                unfocusedTextColor = Color.Black,
-                focusedLabelColor = MaterialTheme.colorScheme.primary,
-                unfocusedLabelColor = MaterialTheme.colorScheme.primary,
-                cursorColor = MaterialTheme.colorScheme.primary
+                .padding(horizontal = 8.dp, vertical = 8.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            OutlinedTextField(
+                value = searchQuery,
+                onValueChange = { viewModel.setSearchQuery(it) },
+                label = { Text("Szukaj zadań") },
+                modifier = Modifier
+                    .weight(1f)
+                    .padding(end = 8.dp),
+                colors = OutlinedTextFieldDefaults.colors(
+                    focusedTextColor = Color.Black,
+                    unfocusedTextColor = Color.Black,
+                    focusedLabelColor = MaterialTheme.colorScheme.primary,
+                    unfocusedLabelColor = MaterialTheme.colorScheme.primary,
+                    cursorColor = MaterialTheme.colorScheme.primary
+                )
             )
-        )
+
+            // Przycisk ustawień
+            IconButton(
+                onClick = onSettingsClick,
+                modifier = Modifier
+                    .size(48.dp)
+                    .shadow(4.dp, shape = MaterialTheme.shapes.small)
+                    .background(MaterialTheme.colorScheme.primary, shape = MaterialTheme.shapes.small)
+            ) {
+                Icon(
+                    Icons.Default.Settings,
+                    contentDescription = "Ustawienia",
+                    tint = Color.White
+                )
+            }
+        }
+
         LazyColumn(modifier = Modifier.weight(1f)) {
-            items(tasks) { task ->
+            items(sortedTasks) { task ->
                 TaskItem(
                     task = task,
                     onClick = { onTaskClick(task) },
@@ -69,4 +97,3 @@ fun TaskListScreen(
         }
     }
 }
-
